@@ -510,13 +510,3 @@ class Network(nn.Module):
         return occupancy      
         
         
-decoder = Decoder()
-encodr = Encoder(128, 128, 128)
-pc_m = PointCloudMLP()
-fpn = FPNFusion([128, 128, 128], 128)
-# N parametrs
-print(f"encoder {sum(p.numel() for p in encodr.parameters()):,}")
-print(f"decoder {sum(p.numel() for p in decoder.parameters()):,}") 
-print(f"PointCloudMLP",sum(p.numel() for p in pc_m.parameters()))
-print(f"FPNFusion {sum(p.numel() for p in fpn.parameters()):,}")
-print(f"Total {sum(p.numel() for p in encodr.parameters()) + sum(p.numel() for p in decoder.parameters()) + sum(p.numel() for p in pc_m.parameters()) + sum(p.numel() for p in fpn.parameters()):,}")
