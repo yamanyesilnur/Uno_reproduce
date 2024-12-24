@@ -509,4 +509,4 @@ class Network(nn.Module):
         
         return occupancy      
         
-        
+            
