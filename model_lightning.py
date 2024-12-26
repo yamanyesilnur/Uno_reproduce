@@ -33,8 +33,8 @@ class LitNetwork(L.LightningModule):
         self.log('Unoccupied Correct', unoccupied_correct, prog_bar=True, on_step=True, on_epoch=True, sync_dist=True)
         self.logger.experiment.add_scalars('Occupied Correct/Unoccupied Correct Training', 
                       {'Occupied' : occupied_correct.item() * 100,
-                       'Unoccupied': unoccupied_correct.item() * 100})
-        self.logger.experiment.add_scalar("Losses", {'Training Loss': loss}, self.global_step)
+                       'Unoccupied': unoccupied_correct.item() * 100}, on_step=True, on_epoch=True, sync_dist=True)
+        self.logger.experiment.add_scalars("Losses", {'Training Loss': loss}, self.global_step)
         return loss
     def validation_step(self, batch, batch_idx):
         past_xyz_points_batch, past_t_index_batch, occupied_points_batch, unoccupied_points_batch = batch
@@ -61,8 +61,8 @@ class LitNetwork(L.LightningModule):
         """
         self.logger.experiment.add_scalars('Occupied Correct/Unoccupied Correct Validation', 
                       {'Occupied' : occupied_correct.item() * 100,
-                       'Unoccupied': unoccupied_correct.item() * 100})
-        self.logger.experiment.add_scalar("Losses", {'Validation Loss': loss}, self.global_step)
+                       'Unoccupied': unoccupied_correct.item() * 100}, on_step=True, on_epoch=True, sync_dist=True)
+        self.logger.experiment.add_scalars("Losses", {'Validation Loss': loss}, self.global_step)
         value = {"Validation Loss": loss, "Occupied Correct": occupied_correct,  
             "Unoccupied Correct": unoccupied_correct}
         return value

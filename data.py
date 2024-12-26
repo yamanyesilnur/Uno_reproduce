@@ -351,14 +351,14 @@ class nuScenesDataset(Dataset):
         # updated_future_points = u_future / scale
         # updated_origin_points = output_origin_tensor / scale
 
-        return [past_xyz_points, past_t_index, occupied_points, unoccupied_points] #0
+        return ([past_xyz_points, past_t_index, occupied_points, unoccupied_points], #0
             # (ref_scene_token, ref_sample_token, ref_sd_token, displacement), #1
             # past_xyz_points, # 2
             # input_origin_tensor, # Extra Added 3
             # input_tindex_tensor, # 4
-            # output_origin_tensor, # 5
-            # output_points_tensor, # 6
-            # output_tindex_tensor, # 7
+            output_origin_tensor, # 5
+            output_points_tensor, # 6
+            output_tindex_tensor, # 7
             # output_labels_tensor,
             # input_points_list, # Extra added
             # output_points_list, # Extra added
@@ -366,4 +366,4 @@ class nuScenesDataset(Dataset):
             # updated_future_points, # Extra added
             # updated_origin_points, # Extra added
             # scale # Extra added
-        
+        )

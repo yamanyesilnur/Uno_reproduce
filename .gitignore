@@ -5,3 +5,6 @@ runs/
 main.py
 visualize.py
 .vscode/
+*.ckpt
+*.deb
+version*
