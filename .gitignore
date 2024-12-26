@@ -5,3 +5,5 @@ runs/
 main.py
 visualize.py
 .vscode/
+logs/
+*log

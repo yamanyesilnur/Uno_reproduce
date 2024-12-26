@@ -57,8 +57,8 @@ class nuScenesDataset(Dataset):
         self.sample_data_tokens = []
         self.timestamps = []
         for scene in scenes:
-            # if scene["name"] not in split_scenes:
-            #   continue
+            if scene["name"] not in split_scenes:
+              continue
             scene_token = scene["token"]
             # location
             log = self.nusc.get("log", scene["log_token"])

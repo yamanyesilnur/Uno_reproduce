@@ -4,7 +4,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.utils.checkpoint import checkpoint 
 # DEFORMABLE_DETR_PATH = "/home/yaman/yamanWork/RayCasting/Deformable-DETR" # /kuacc/users/yyesilnur23/UnoReproduce/Deformable-DETR
 # if DEFORMABLE_DETR_PATH not in sys.path:
 #     sys.path.append(DEFORMABLE_DETR_PATH)
@@ -203,7 +203,7 @@ class MSDeformAttnWrapper(nn.Module):
 
 
 class Encoder(nn.Module):  # Parameter count: 13,866,176
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, hidden_channels, out_channels, use_checkpointing=True):
         super(Encoder, self).__init__()
         self.lidar_stem = ConvolutionalStem(in_channels, hidden_channels)
 
@@ -221,37 +221,61 @@ class Encoder(nn.Module):  # Parameter count: 13,866,176
 
         self.resblock8 = ResBlock(hidden_channels, hidden_channels)
         self.resblock9 = ResBlock(hidden_channels, out_channels)
+        
+        self.use_checkpointing = use_checkpointing
 
         self.msda = MSDeformAttnWrapper(
             d_model=out_channels, n_levels=3, n_heads=16, n_points=4
         ).cuda()
 
     def forward(self, x):
+        if not self.use_checkpointing:
+            intermediate_feature_maps = []
+            intermediate_feature_maps_after_msda = []
 
-        intermediate_feature_maps = []
-        intermediate_feature_maps_after_msda = []
+            x = self.lidar_stem(x)
 
-        x = self.lidar_stem(x)
+            x = self.resblock0(x)
+            x = self.resblock1(x)
+            intermediate_feature_maps.append(x)
 
-        x = self.resblock0(x)
-        x = self.resblock1(x)
-        intermediate_feature_maps.append(x.clone().cuda())
+            x = self.resblock2(x)
+            x = self.resblock3(x)
+            intermediate_feature_maps.append(x)
 
-        x = self.resblock2(x)
-        x = self.resblock3(x)
-        intermediate_feature_maps.append(x.clone().cuda())
+            x = self.resblock4(x)
+            x = self.resblock5(x)
 
-        x = self.resblock4(x)
-        x = self.resblock5(x)
+            x = self.resblock6(x)
+            x = self.resblock7(x)
 
-        x = self.resblock6(x)
-        x = self.resblock7(x)
+            x = self.resblock8(x)
+            x = self.resblock9(x)
+            intermediate_feature_maps.append(x)
 
-        x = self.resblock8(x)
-        x = self.resblock9(x)
-        intermediate_feature_maps.append(x.clone().cuda())
-
-        intermediate_feature_maps_after_msda = self.msda(*intermediate_feature_maps)
+            intermediate_feature_maps_after_msda = self.msda(*intermediate_feature_maps)
+        else:
+            intermediate_feature_maps = []
+            intermediate_feature_maps_after_msda = []
+            
+            x = checkpoint(self.lidar_stem, x)
+            x = checkpoint(self.resblock0, x)
+            x = checkpoint(self.resblock1, x)
+            intermediate_feature_maps.append(x)
+            x = checkpoint(self.resblock2, x)
+            x = checkpoint(self.resblock3, x)
+            intermediate_feature_maps.append(x)
+            x = checkpoint(self.resblock4, x)
+            x = checkpoint(self.resblock5, x)
+            x = checkpoint(self.resblock6, x)
+            x = checkpoint(self.resblock7, x)
+            x = checkpoint(self.resblock8, x)
+            x = checkpoint(self.resblock9, x)
+            intermediate_feature_maps.append(x)
+            
+            intermediate_feature_maps_after_msda = checkpoint(self.msda, *intermediate_feature_maps)
+            
+            
 
         return intermediate_feature_maps_after_msda
 
@@ -488,7 +512,7 @@ class Network(nn.Module):
     def __init__(self, kwargs):
         super(Network, self).__init__()
         self.pc_mlp = PointCloudMLP()
-        self.encoder = Encoder(128, 128, 128)
+        self.encoder = Encoder(128, 128, 128, use_checkpointing=False)
         self.fpn = FPNFusion([128, 128, 128], 128)
         self.x_low = kwargs['x_low']
         self.y_low = kwargs['y_low']
@@ -505,6 +529,7 @@ class Network(nn.Module):
             feature_maps.append(voxelize(past_xyz_points, self.pc_mlp ,past_t_index, self.x_low, self.y_low, self.x_high, self.y_high, self.grid_width, self.grid_length))
         feature_maps = self.encoder(torch.stack(feature_maps, dim=0))
         fused_feature_map = self.fpn(feature_maps)  
+        # fused_feature_map = checkpoint(self.fpn, feature_maps, use_reentrant=False)
         occupancy = self.decoder(query_points, fused_feature_map)
         
         return occupancy      
