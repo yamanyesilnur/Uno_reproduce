@@ -5,9 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# DEFORMABLE_DETR_PATH = "/home/yaman/yamanWork/RayCasting/Deformable-DETR" # /kuacc/users/yyesilnur23/UnoReproduce/Deformable-DETR
-# if DEFORMABLE_DETR_PATH not in sys.path:
-#     sys.path.append(DEFORMABLE_DETR_PATH)
 from models.ops.modules.ms_deform_attn import MSDeformAttn
 from torchvision.ops import SqueezeExcitation
 
