@@ -12,7 +12,7 @@ from dynamic_conv import Dynamic_conv2d
 from utils import voxelize
 
 
-class PointCloudMLP(nn.Module):  # Parameter count: 199, 296
+class PointCloudMLP(nn.Module):  
     def __init__(self, input_size=4, hidden_size=128, output_size=128) -> None:
         super(PointCloudMLP, self).__init__()
         # 2 layer hidden 128
