@@ -8,3 +8,4 @@ visualize.py
 *.ckpt
 *.deb
 version*
+visualize*

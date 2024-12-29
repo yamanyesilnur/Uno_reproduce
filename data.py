@@ -133,13 +133,7 @@ class nuScenesDataset(Dataset):
 
         return pose
 
-    # def load_fg_labels(self, sample_data_token):
-    #     lidarseg = self.nusc.get("lidarseg", sample_data_token)
-    #     lidarseg_labels = np.fromfile(
-    #         f"{self.nusc.dataroot}/{lidarseg['filename']}", dtype=np.uint8
-    #     )
-    #     fg_labels = np.logical_and(1 <= lidarseg_labels, lidarseg_labels <= 23)
-    #     return fg_labels
+    
     def unsupervised_labeling(self, future_xyz_points, future_t_index, sensor_origins):
         # Prepare steps and directions for rays cast
         """
@@ -224,12 +218,7 @@ class nuScenesDataset(Dataset):
             tindex = np.full(len(points_tf), i, dtype=np.float32)
             input_tindex_list.append(tindex)
 
-        ############## Normalize past point coordinates ################
-        # processed_input_points_list = []
-        # for past_xyz_points in input_points_list:
-        #     processed_past_xyz_points, _, _ = pc_normalize(past_xyz_points)
-        #     processed_input_points_list.append(processed_past_xyz_points)
-
+        
         past_xyz_points = torch.from_numpy(np.concatenate(input_points_list))
         input_origin_tensor = torch.from_numpy(np.stack(input_origin_list))
         input_tindex_tensor = torch.from_numpy(np.concatenate(input_tindex_list))
@@ -291,19 +280,15 @@ class nuScenesDataset(Dataset):
             tindex = np.full(len(points_tf), i, dtype=np.float32)
             output_tindex_list.append(tindex)
 
-            # output_labels_list.append(labels)
-        # processed_output_points_list = []
-        # processed_output_origin_list = []
-        # for i, future_xyz_points in enumerate(output_points_list):
-        #     processed_future_xyz_points,centroid, m= pc_normalize(future_xyz_points)
-        #     processed_output_points_list.append(processed_future_xyz_points)
-        #     processed_output_origin_list.append((output_origin_list[i] - centroid)/m)
-
+            
 
         output_origin_tensor = torch.from_numpy(np.stack(output_origin_list))
         output_points_tensor = torch.from_numpy(np.concatenate(output_points_list))
         output_tindex_tensor = torch.from_numpy(np.concatenate(output_tindex_list))
         output_labels_tensor = output_labels_list #torch.from_numpy(np.concatenate(output_labels_list))
+        
+        ############################# Prepare Occupied and Unoccupied Points #############################
+        
         directions_with_t_steps = self.unsupervised_labeling(output_points_tensor,output_tindex_tensor, output_origin_tensor)
         
         selected_ind = torch.randperm(len(directions_with_t_steps))[:self.n_query_points // self.n_ray_points] # Random indices for unoccupied n_query_points / 4
@@ -336,34 +321,6 @@ class nuScenesDataset(Dataset):
         
         past_t_index = input_tindex_tensor / input_tindex_tensor.max() # Normalize time by dividing it to max
         
-        # centroid_past = torch.mean(input_points_tensor, dim=0)
-        # centroid_future = torch.mean(output_points_tensor, dim=0)
-        # centroid_origins = torch.mean(output_origin_tensor, dim=0)
-        # centroid = (centroid_past + centroid_future + centroid_origins) / 3
-        # u_past = input_points_tensor - centroid
-        # u_future = output_points_tensor - centroid
-        # output_origin_tensor = output_origin_tensor - centroid
-        # norm_scale_past = torch.max(torch.norm(u_past, dim=1))
-        # norm_scale_future = torch.max(torch.norm(u_future, dim=1))
-        # norm_scale_origin = torch.max(torch.norm(output_origin_tensor, dim=1))
-        # scale = torch.max(torch.max(norm_scale_past, norm_scale_future), norm_scale_origin)
-        # updated_past_points = u_past / scale
-        # updated_future_points = u_future / scale
-        # updated_origin_points = output_origin_tensor / scale
-
-        return ([past_xyz_points, past_t_index, occupied_points, unoccupied_points], #0
-            # (ref_scene_token, ref_sample_token, ref_sd_token, displacement), #1
-            # past_xyz_points, # 2
-            # input_origin_tensor, # Extra Added 3
-            # input_tindex_tensor, # 4
-            output_origin_tensor, # 5
-            output_points_tensor, # 6
-            output_tindex_tensor, # 7
-            # output_labels_tensor,
-            # input_points_list, # Extra added
-            # output_points_list, # Extra added
-            # updated_past_points, # Extra added
-            # updated_future_points, # Extra added
-            # updated_origin_points, # Extra added
-            # scale # Extra added
-        )
+       
+        return [past_xyz_points, past_t_index, occupied_points, unoccupied_points] 
+            

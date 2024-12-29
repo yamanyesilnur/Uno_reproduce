@@ -235,11 +235,11 @@ class Encoder(nn.Module):  # Parameter count: 13,866,176
 
         x = self.resblock0(x)
         x = self.resblock1(x)
-        intermediate_feature_maps.append(x.clone().cuda())
+        intermediate_feature_maps.append(x)
 
         x = self.resblock2(x)
         x = self.resblock3(x)
-        intermediate_feature_maps.append(x.clone().cuda())
+        intermediate_feature_maps.append(x)
 
         x = self.resblock4(x)
         x = self.resblock5(x)
@@ -249,7 +249,7 @@ class Encoder(nn.Module):  # Parameter count: 13,866,176
 
         x = self.resblock8(x)
         x = self.resblock9(x)
-        intermediate_feature_maps.append(x.clone().cuda())
+        intermediate_feature_maps.append(x)
 
         intermediate_feature_maps_after_msda = self.msda(*intermediate_feature_maps)
 
