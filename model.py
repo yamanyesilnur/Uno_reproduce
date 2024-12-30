@@ -26,8 +26,6 @@ class PointCloudMLP(nn.Module):
         x = self.relu(self.linear1(x))
         
         x = self.linear2(x)
-        
-        
 
         return x
 
@@ -62,7 +60,10 @@ class ConvolutionalStem(nn.Module):
         x = self.relu(self.bn2(self.conv2(x)))
 
         x = self.relu(self.bn3(self.conv3(x)))
-
+        
+        print('Shape after conv stem',x.shape, end='\n')
+        print()
+        
         return x
 
 
@@ -269,10 +270,14 @@ class Encoder(nn.Module):  # Parameter count: 13,866,176
         x = self.resblock0(x)
         x = self.resblock1(x)
         intermediate_feature_maps.append(x)
+        print('Shape after resblock 1',x.shape, end='\n')
+        print()
 
         x = self.resblock2(x)
         x = self.resblock3(x)
         intermediate_feature_maps.append(x)
+        print('Shape after resblock 3',x.shape, end='\n')
+        print()
 
         x = self.resblock4(x)
         x = self.resblock5(x)
@@ -283,8 +288,13 @@ class Encoder(nn.Module):  # Parameter count: 13,866,176
         x = self.resblock8(x)
         x = self.resblock9(x)
         intermediate_feature_maps.append(x)
+        print('Shape after resblock 9',x.shape, end='\n')
+        print()
 
         intermediate_feature_maps_after_msda = self.msda(*intermediate_feature_maps)
+        print('Shape after msda',[x.shape for x in intermediate_feature_maps_after_msda], end='\n')
+        print()
+        
 
         return intermediate_feature_maps_after_msda
 
@@ -328,12 +338,23 @@ class FPNFusion(torch.nn.Module):  # Parameter count: 262,784
         fused_features = self.deconv1(self.mlp1(features[2]))
         assert fused_features.shape == features[1].shape
         fused_features = fused_features + self.mlp2(features[1])
+        
+        print('Shape after deconv1',fused_features.shape, end='\n')
+        print()
+        
         fused_features = self.conv1(fused_features)
         fused_features = self.deconv2(fused_features)
         assert fused_features.shape == features[0].shape
+        
+        print('Shape after deconv2',fused_features.shape, end='\n')
+        print()
+        
         fused_features = fused_features + self.mlp3(features[0])
         fused_features = self.conv2(fused_features)
         assert fused_features.shape == features[0].shape
+        
+        print('Shape after conv2',fused_features.shape, end='\n')
+        print()
 
         return fused_features
 
@@ -410,6 +431,10 @@ class OffsetPredictor(nn.Module):
         interpolated_features = interpolated_features.squeeze(-1).permute(
             0, 2, 1
         )  # (B, n_points, F)
+        
+        print('Shape after bilinear interpolation',interpolated_features.shape, end='\n')
+        print()
+        
         ############################################
         
         ######## Project and fuse ##################
@@ -516,6 +541,9 @@ class Decoder(nn.Module): # 8,563
         r_interpolated_features = self.offset_predictor.after_offset_interpolate(r, Z)
         
         Z_f = torch.cat([q_interpolated_features, r_interpolated_features], dim=-1)
+        
+        print('Shape after concatenation of features of query point and features of offset + query point',Z_f.shape)
+        print()
         
         q_16 = self.project_q(q)
         # Z_f_16 = self.project_Z_f(Z_f)
