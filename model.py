@@ -34,6 +34,11 @@ class PointCloudMLP(nn.Module):
 
 class ConvolutionalStem(nn.Module):
     def __init__(self, in_channels, out_channels):
+        """
+        3 convolutional layers with batch normalization and ReLU activation
+        as in ImplicitO supplementary, channel size is fixed as 128 in the UnO appendix
+        """
+        
         super(ConvolutionalStem, self).__init__()
         self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=3, stride=2, padding=1
@@ -63,6 +68,18 @@ class ConvolutionalStem(nn.Module):
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=False):
+        
+        """
+        The ResBlock following UnO appendix and ImplicitO supplementary
+        First process by a 1x1 convolution keeping channel size constant and a batchnorm layer.
+        Then 3x3 dynamic convolution with stride 2 if downsample is True or stride 1 otherwise and 
+        a batchnorm layer and ReLU activation.
+        Then second 3x3 dynamic convolution with stride 1 and a batchnorm layer, squeeze excitation,
+        and dropout layer.
+        Lastly, a 1x1 convolution with stride 1 and a batchnorm layer, and the residual connection.
+        
+        """
+        
         super(ResBlock, self).__init__()
         self.downsample = downsample
         self.stride = 2 if downsample else 1
@@ -119,6 +136,14 @@ class ResBlock(nn.Module):
 
 class MSDeformAttnWrapper(nn.Module):
     def __init__(self, d_model=128, n_levels=3, n_heads=16, n_points=4):
+        
+        """
+        Directly using the Multi-Scale Deformable Attention module from the Deformable-DETR repo,
+        Reference points for the deformable attention are calculated as grid cell centers for each scale feature map.
+        Reference points are concatenated and fed to the MSDeformAttn module.
+        The input feature maps are flattened and concatenated and fed to the MSDeformAttn module.
+        """
+        
         super(MSDeformAttnWrapper, self).__init__()
         self.d_model = d_model
         self.n_levels = n_levels
@@ -201,6 +226,17 @@ class MSDeformAttnWrapper(nn.Module):
 
 class Encoder(nn.Module):  # Parameter count: 13,866,176
     def __init__(self, in_channels, hidden_channels, out_channels):
+        
+        """
+        Encoder takes input voxelized lidar point clouds 
+        and processes them through a series of ResBlocks.
+        Lidar_stem decreases the spatial resolution by 2 and keeps the channel size constant.
+        Resblock 0,2,4 decrease the spatial resolution by 2 and keep the channel size constant.
+        The other blocks keep the spatial resolution and channel size constant.
+        The output of Resblocks 1,3,9 are stored and passes through MSDA module.
+        Output of MSDA module is returned. 
+        """
+        
         super(Encoder, self).__init__()
         self.lidar_stem = ConvolutionalStem(in_channels, hidden_channels)
 
@@ -265,6 +301,12 @@ def deconv3x3(in_channels, out_channels, kernel_size, stride=2, padding=1):
 
 class FPNFusion(torch.nn.Module):  # Parameter count: 262,784
     def __init__(self, in_channels_list, out_channels):
+        """
+        The upsampling and fusing is done following the PIXOR paper.
+        The lowest resolution feature map is upsampled by a factor of 2 and added to the middle resolution feature map.
+        The result is upsampled by a factor of 2 and added to the highest resolution feature map. 
+        Before adding, a 1x1 convolution is applied.
+        """
         super(FPNFusion, self).__init__()
 
         self.deconv1 = deconv3x3(
@@ -327,6 +369,14 @@ class OffsetPredictor(nn.Module):
         nn.init.constant_(self.project.bias, 0.0)
 
     def forward(self, points, Z):
+        
+        """
+        Bilinearly interpolate the feature maps at the query points and
+        project the query points and interpolated features to 16 dimensions.
+        Fuse the query points and interpolated features and 
+        pass through two linear layers with residual connection.
+        Project the fused features to 2 dimensions to get the offset.
+        """
 
         B, F_, L_4, W_4 = Z.shape
 
@@ -400,7 +450,7 @@ class OffsetPredictor(nn.Module):
             mode="bilinear",
             padding_mode="border",
             align_corners=True,
-        )  # This is same as in the Conv Occ Networks
+        )  # This is same as in the Convolutional Occupancy Networks
         interpolated_features = interpolated_features.squeeze(-1).permute(0, 2, 1)
 
         return interpolated_features
