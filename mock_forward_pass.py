@@ -22,7 +22,7 @@ kwargs = {
 'grid_length' : 0.15,
 }
 
-[past_xyz_points, past_t_index, occupied_points, unoccupied_points] = np.load('past_xyz_points.npy'), np.load('past_t_index.npy'), np.load('occupied_points.npy'), np.load('unoccupied_points.npy')
+[past_xyz_points, past_t_index, occupied_points, unoccupied_points] = np.load('data/past_xyz_points.npy'), np.load('data/past_t_index.npy'), np.load('data/occupied_points.npy'), np.load('data/unoccupied_points.npy')
 
 print('Past xyz points shape',past_xyz_points.shape)
 print('Past t index shape',past_t_index.shape)
