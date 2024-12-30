@@ -20,7 +20,7 @@ class MyLidarPointCloud(LidarPointCloud):
 class nuScenesDataset(Dataset):
     def __init__(self, nusc, nusc_split, kwargs):
         """
-        Figure out a list of sample data tokens for training.
+        Mostly taken from 4D Occupancy Forecasting, I only added the unsupervised labeling part at the end
         """
         super(nuScenesDataset, self).__init__()
 
@@ -140,8 +140,11 @@ class nuScenesDataset(Dataset):
         future_xyz_points  # (N, 3)
         future_t_index  # (N,)
         sensor_origins  # (n_output, 3)
+        
+        Compute directions as vectors from sensor origins to future_xyz_points and the distances,
+        return unit directions with t steps and norms
         """
-        # Prepare steps and directions for rays cast
+        
         sensor_origins_br = sensor_origins[future_t_index.to(dtype=torch.int)] # (N,3)
         directions = future_xyz_points - sensor_origins_br
         norms = torch.norm(directions, dim=1, keepdim=True) 
@@ -291,17 +294,23 @@ class nuScenesDataset(Dataset):
         
         directions_with_t_steps = self.unsupervised_labeling(output_points_tensor,output_tindex_tensor, output_origin_tensor)
         
+        """
+        Randomly sample rays and points on the rays for unsupervised labeling,
+        to sample 900,000 points, we sample 60,000 rays and 15 points on each ray
+        for both occupied and unoccupied points. The occupied points are sampled uniformly in the 0.1 meter part of the ray 
+        behind the lidar points as decribed in the paper.
+        """
         selected_ind = torch.randperm(len(directions_with_t_steps))[:self.n_query_points // self.n_ray_points] # Random indices for unoccupied n_query_points / 4
         binary_mask = torch.zeros(len(directions_with_t_steps), dtype=torch.bool)
         binary_mask[selected_ind] = True
-        selected_directions = directions_with_t_steps[binary_mask] # (n_query_points / 4, 5)
+        selected_directions = directions_with_t_steps[binary_mask] # (n_query_points / self.n_ray_points, 5)
 
         # sample n_ray_points unoccupied points on the ray for each chosen point
         random_factors = torch.rand(len(selected_directions),self.n_ray_points) # n_ray_points random factor for each dirn in selected dirns
-        scaled_factors = random_factors * (selected_directions[:, -1:] - self.ray_step / self.scale) # (n_query_points / 4, 4), 0.5 adjusts how close the unoccupied points to actual points
-        unit_dirns_expanded = selected_directions[:,:-2].unsqueeze(1) # (n_query_points / 4, 1, 3)
-        scaled_factors = scaled_factors.unsqueeze(-1) # (n_query_points / 4, n_ray_points, 1)
-        unoccupied_points = scaled_factors * unit_dirns_expanded # (n_query_points / 4, n_ray_points, 3) dim 1 = ray, dim 2 = point index on ray, dim 3 = xyz coordinates 
+        scaled_factors = random_factors * (selected_directions[:, -1:] - self.ray_step / self.scale) # (n_query_points / self.n_ray_points, 4), 0.5 adjusts how close the unoccupied points to actual points
+        unit_dirns_expanded = selected_directions[:,:-2].unsqueeze(1) # (n_query_points / self.n_ray_points, 1, 3)
+        scaled_factors = scaled_factors.unsqueeze(-1) # (n_query_points / self.n_ray_points, n_ray_points, 1)
+        unoccupied_points = scaled_factors * unit_dirns_expanded # (n_query_points / self.n_ray_points, n_ray_points, 3) dim 1 = ray, dim 2 = point index on ray, dim 3 = xyz coordinates 
 
         # sample n_ray_points occupied points
         adjustments = torch.ones(len(selected_directions),self.n_ray_points)
