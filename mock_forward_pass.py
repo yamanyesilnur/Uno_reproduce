@@ -1,8 +1,7 @@
 import numpy as np
 import torch
 
-from model import Network
-from model_new import UnO
+from model import UnO
 
 def log_model_summary(model: torch.nn.Module, max_depth: int = 4, root_name="model"):
     counts_by_depth: dict[int, dict[str, int]] = {depth: {} for depth in range(max_depth)}
@@ -17,6 +16,7 @@ def log_model_summary(model: torch.nn.Module, max_depth: int = 4, root_name="mod
             counts[prefix] += param_count
 
     total = counts_by_depth[0][root_name]
+    assert total == 16400315, "This is the number of params from the official codebase"
     print("Model summary:")
     for depth in range(max_depth):
         print(f"Depth {depth}")
