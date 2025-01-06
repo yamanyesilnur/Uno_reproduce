@@ -1,8 +1,6 @@
 import math
 import torch
 from torch import nn
-import sys
-sys.path.append("/home/bagro/Uno_reproduce/Deformable-DETR/")
 from models.ops.modules.ms_deform_attn import MSDeformAttn
 
 class LayerNormReLU(nn.Module):
@@ -35,24 +33,6 @@ def point_cloud_roi_mask(
     z_min: float | None = None,
     z_max: float | None = None,
 ) -> torch.Tensor:
-    """Clips the point cloud to ROI defined by x_min, x_max, y_min, y_max, z_min, z_max.
-    Points (N, ...) must be have x, y, z in the first 3 elements of the second dimension, where N is the nth point.
-
-    Args:
-        pts:
-        x_min: _description_
-        x_max: _description_
-        y_min: _description_
-        y_max: _description_
-        z_min: _description_. Defaults to None.
-        z_max: _description_. Defaults to None.
-
-    Returns:
-        _description_
-
-    Raises:
-        AssertionError: _description_
-    """
     if (z_min is None) != (z_max is None):
         raise AssertionError("if z_min is supplied z_max must be supplied, and visa-versa")
     include_z = z_min is not None
@@ -953,7 +933,7 @@ class FPN(nn.Module):
         final_conv_out: torch.Tensor = self.convs_3x3(out)
         return [final_conv_out]
 
-class ResnetBlockFC(nn.Module):
+class FullyConnectedResNetBlock(nn.Module):
     """Fully connected linear Resnet block, adatped from
     https://github.com/autonomousvision/convolutional_occupancy_networks
 
@@ -1021,12 +1001,7 @@ class ResnetBlockFC(nn.Module):
         return x_s + dx
 
 
-class CONetResNet(nn.Module):
-    """
-    Implements the ResNet decoder from Convolutional Occupancy Networks.
-    See https://drive.google.com/file/d/1a11A2HcD3qLaEyjZZDWAIg3d-uCE4S5o/view?usp=sharing
-    for an architecture diagram
-    """
+class ConvOccResNet(nn.Module):
 
     def __init__(self, n_blocks: int, feature_vector_dim: int, points_dim: int, hidden_size: int, norm_type: str = "None"):
         super().__init__()
@@ -1034,10 +1009,8 @@ class CONetResNet(nn.Module):
         assert n_blocks >= 0, "Can't have a negative number of blocks"
         self.n_blocks = n_blocks
         self.hidden_size = hidden_size
-        # self.feature_vector_dim = cfg.feature_vector_dim
-        # self.points_dim
         self.resnet_blocks = nn.ModuleList(
-            [ResnetBlockFC(hidden_size, norm_type=norm_type) for _ in range(n_blocks)]
+            [FullyConnectedResNetBlock(hidden_size, norm_type=norm_type) for _ in range(n_blocks)]
         )
         self.linear_feature_vector = nn.ModuleList(
             [nn.Linear(feature_vector_dim, hidden_size) for _ in range(n_blocks)]
@@ -1086,21 +1059,6 @@ def sample_planar_features(
 
 
 class Decoder(nn.Module):
-    """Header implementing deformable attention as shown in this architecture diagram:
-    https://drive.google.com/file/d/1FQYfVIaWAHvDjNqBlhA3BTdMIXIisaBE/view?usp=sharing
-
-    Information of deformable convolution and attention can be found in these papers:
-    https://arxiv.org/abs/2010.04159
-    https://arxiv.org/abs/1703.06211
-
-    Args:
-        actor_classes: Actor classes present in the scenario
-        decoder_cfg: Config for the occupancy/motion/modal_logits decoder
-        attention_decoder_cfg: Config for the attention module
-        offset_coords: Specifies which coordinates the offsets from the attention module are applied to.
-            t = 0, y = 1, x = 2. E.g., [1, 2] specifies an offset in the y and x dimension, but not the t
-            dimension
-    """
 
     def __init__(
         self,
@@ -1112,7 +1070,6 @@ class Decoder(nn.Module):
         decoder_resnet_hidden_size: int = 16,
         decoder_resnet_points_dim: int = 4,
         decoder_resnet_feature_vector_dim: int = 256,
-        time_scale_attention: bool = False,
     ):
         super().__init__()
         self.n_heads = 1
@@ -1122,7 +1079,7 @@ class Decoder(nn.Module):
         assert len(self.offset_coords) <= 3
 
         self.attn_interpolators = sample_planar_features
-        self.attn_resnets = CONetResNet(
+        self.attn_resnets = ConvOccResNet(
             n_blocks=attn_resnet_num_blocks,
             feature_vector_dim=attn_resnet_feature_vector_dim,
             points_dim=attn_resnet_points_dim,
@@ -1131,7 +1088,7 @@ class Decoder(nn.Module):
         self.attn_decoder = nn.Linear(self.attn_resnets.hidden_size, 2)
 
         self.decoder_interpolators = sample_planar_features
-        self.decoder_resnets = CONetResNet(
+        self.decoder_resnets = ConvOccResNet(
             n_blocks=decoder_resnet_num_blocks,
             feature_vector_dim=decoder_resnet_feature_vector_dim,
             points_dim=decoder_resnet_points_dim,
@@ -1184,16 +1141,13 @@ class Decoder(nn.Module):
             new_query_points[:, :, :, -2:], c
         )  # (B, Q, n_heads, c_dim)
 
-        # aggregating interpolated features
 
         c = c_1_n.reshape(batch_size, num_query, -1)
-
         assert len(c.shape) == 3 and c.shape[:-1] == (batch_size, num_query)
 
         assert self.n_heads > 0 and c_0 is not None
         c = torch.concat((c, c_0), dim=-1)
 
-        # agnostic to aggregation method: decide which points should be used in decoding
         points_decode_list = []
         points_decode_list.append(query_points.reshape((batch_size, num_query, -1)))
         assert len(points_decode_list) > 0
@@ -1210,7 +1164,7 @@ class Decoder(nn.Module):
 class UnO(nn.Module):
     def __init__(self):
         super().__init__()
-        # Note: here im putting configs for av2
+        # Note: here im hardcoding configs for av2, change as needed.
         self.voxelizer = Voxelizer(
             x_min=-100.0,
             x_max=150.0,

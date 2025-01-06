@@ -26,11 +26,14 @@ def log_model_summary(model: torch.nn.Module, max_depth: int = 4, root_name="mod
 
 network = UnO().cuda()
 
-log_model_summary(network)
+log_model_summary(network, max_depth=1)
 
 # Forward pass
 batch_size = 1
 lidar_sweeps = [[torch.rand((100_000, 5)).cuda() for _ in range(6)] for _ in range(batch_size)] # outer list over batch, inner list over timesteps. Tensor is shape (num_points, (x, y, z, intensity, t))
 query_points = torch.rand((batch_size, 10_000, 4)).cuda() # (batch_size, num_query_points, 4). Last dim is (x, y, z, t)
 occupied_output = network(lidar_sweeps,  query_points)
+
+print(f"Input query points shape: {query_points.shape}")
+print(f"Output shape: {occupied_output.shape}")
 
