@@ -85,7 +85,7 @@ class Voxelizer(nn.Module):
         num_sweeps: int,
         single_lidar=False,
         clip_outside_voxelizer_z_roi: bool = False,
-        n_feat: int | None = None,
+        n_feat: int = 128,
     ):
         super().__init__()
         self.single_lidar = single_lidar  # in case we use it to voxelize a single-lidar pointclouds
@@ -106,7 +106,6 @@ class Voxelizer(nn.Module):
 
         n_input = 4
         self.n_input = n_input
-        n_feat = 16 if n_feat is None else n_feat
 
         self.block = nn.Sequential(
             nn.Linear(n_input, n_feat),
