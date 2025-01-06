@@ -24,34 +24,6 @@ def log_model_summary(model: torch.nn.Module, max_depth: int = 4, root_name="mod
             print(f"{name} {count / total * 100:.2f}% {count}")
 
 
-config = {
-            "pc_range": [-100, -100, -3, 100, 100, 3],
-            "voxel_size": 0.15,
-            "n_input": 6,
-            "n_output": 6,
-            "ray_step": 0.1,
-            "n_ray_points": 15,
-            "n_query_points": 900_000,
-            "scale": 1,
-}
-kwargs = {
-'x_low' : -100,
-'y_low' : -100,
-'x_high' : 100,
-'y_high' : 100,
-'grid_width' : 0.15,
-'grid_length' : 0.15,
-}
-
-[past_xyz_points, past_t_index, occupied_points, unoccupied_points] = np.load('data/past_xyz_points.npy'), np.load('data/past_t_index.npy'), np.load('data/occupied_points.npy'), np.load('data/unoccupied_points.npy')
-
-print('Past xyz points shape',past_xyz_points.shape)
-print('Past t index shape',past_t_index.shape)
-print('Occupied points shape',occupied_points.shape)
-print('Unoccupied points shape',unoccupied_points.shape)
-print()
-
-### Have to run everything on GPU because MSDA is not implemented on CPU
 network = UnO().cuda()
 
 log_model_summary(network)
