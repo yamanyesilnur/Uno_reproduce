@@ -20,7 +20,6 @@ class LayerNormReLU(nn.Module):
         if self.use_relu:
             out = self.relu_layer(out)
         if transpose:
-            # TODO: revise the simple transpose for bs > 1
             out = out.T.contiguous()
         return out
 
@@ -460,7 +459,6 @@ def build_norm_layer(
         if torch.distributed.is_initialized():
             return sync_batchnorm(num_features, affine=affine, dim=dim)
         else:
-            print("distributed env is not initialized, fall back to batch norm")
             if dim == 1:
                 return nn.BatchNorm1d(num_features, affine=affine)
             elif dim == 2:
@@ -1190,13 +1188,13 @@ class UnO(nn.Module):
             stride_in_stem=2,
             dilations_per_stage=[1, 1, 1],
             out_indices=[1, 2, 3],
-            norm_type="BN", # TODO: change this to SyncBN if training on distributed
+            norm_type="SyncBN", 
             d_proj=128,
         )
         self.fpn = FPN(
             in_channels=(128, 128, 128),
             out_channels=128,
-            norm_type="BN",
+            norm_type="SyncBN",
         )
         self.decoder = Decoder()
         
