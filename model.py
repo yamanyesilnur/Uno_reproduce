@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import sys
+sys.path.append("/home/bagro/Uno_reproduce/Deformable-DETR/")
 from models.ops.modules.ms_deform_attn import MSDeformAttn
 from torchvision.ops import SqueezeExcitation
 
