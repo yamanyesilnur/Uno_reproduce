@@ -16,7 +16,7 @@ def log_model_summary(model: torch.nn.Module, max_depth: int = 4, root_name="mod
             counts[prefix] += param_count
 
     total = counts_by_depth[0][root_name]
-    assert total == 16400315, "This is the number of params from the official codebase"
+    assert total == 16400315, "This is the number of params from the official codebase. Remove this line if you are trying to make changes"
     print("Model summary:")
     for depth in range(max_depth):
         print(f"Depth {depth}")
